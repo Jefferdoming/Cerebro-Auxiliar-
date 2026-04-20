@@ -1,0 +1,200 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User specific settings and basic info.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "professor"] },
+        "onboardingComplete": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name"]
+    },
+    "Task": {
+      "title": "Daily Task",
+      "description": "Short micro-tasks for the user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "content": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "content", "completed", "date"]
+    },
+    "Finance": {
+      "title": "Financial Record",
+      "description": "Basic debt tracking and impulsive spending alerts.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "totalDebt": { "type": "number" },
+        "monthlyMeta": { "type": "number" },
+        "lastImpulseCheck": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "totalDebt"]
+    }
+    "Habit": {
+      "title": "Healthy Habit",
+      "description": "Daily habit based on Miracle Morning or Micro Habits.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["SAVERS", "MICRO"] },
+        "completedDates": { "type": "array", "items": { "type": "string" } },
+        "streak": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "type"]
+    },
+    "FinancialRecord": {
+      "title": "Transaction",
+      "description": "Income, expense, debt or bill record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "bill", "debt"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["pending", "paid", "received"] },
+        "priority": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount", "description"]
+    },
+    "Loan": {
+      "title": "Loan Tracking",
+      "description": "Installment-based debt management.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "description": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "monthlyAmount": { "type": "number" },
+        "totalInstallments": { "type": "number" },
+        "paidInstallments": { "type": "number" },
+        "interestRate": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "description", "totalAmount", "monthlyAmount", "totalInstallments", "paidInstallments"]
+    },
+    "Investment": {
+      "title": "Investment Tracking",
+      "description": "Savings, capitalization and other assets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["capitalization", "piggybank", "other"] },
+        "totalInstallments": { "type": "number" },
+        "paidInstallments": { "type": "number" },
+        "monthlyContribution": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "description", "amount", "type"]
+    },
+    "Routine": {
+      "title": "Daily Routine",
+      "description": "Medication and habit tracking routines.",
+      "type": "object",
+      "properties": {
+        "medication": {
+          "type": "object",
+          "properties": {
+            "morning": { "type": "boolean" },
+            "afternoon": { "type": "boolean" },
+            "night": { "type": "boolean" },
+            "lastNoted": { "type": "string" }
+          }
+        }
+      },
+      "required": ["medication"]
+    },
+    "CalendarEvent": {
+      "title": "Agenda Item",
+      "description": "Events and appointments for schools, health and personal.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "type": { "type": "string", "enum": ["school", "health", "delivery", "personal"] },
+        "category": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "date", "type"]
+    },
+    "DailyCommitment": {
+      "title": "Daily Commitment",
+      "description": "Daily micro-habit and goal reflection (Atomic Habits / 7 Habits).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "microHabit": { "type": "string" },
+        "isCompleted": { "type": "boolean" },
+        "reflection": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "microHabit"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents."
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Collection of daily tasks."
+    },
+    "/finances/{userId}": {
+      "schema": "Finance",
+      "description": "Financial summary per user."
+    },
+    "/habits/{habitId}": {
+      "schema": "Habit",
+      "description": "Collection of user habits."
+    },
+    "/financial_records/{recordId}": {
+      "schema": "FinancialRecord",
+      "description": "Detailed financial transactions."
+    },
+    "/loans/{loanId}": {
+      "schema": "Loan",
+      "description": "Installment-based loans."
+    },
+    "/investments/{investmentId}": {
+      "schema": "Investment",
+      "description": "Savings and capitalization assets."
+    },
+    "/routines/{userId}": {
+      "schema": "Routine",
+      "description": "Daily routine state (e.g. medication)."
+    },
+    "/events/{eventId}": {
+      "schema": "CalendarEvent",
+      "description": "Calendar appointments and school classes."
+    },
+    "/commitments/{commitmentId}": {
+      "schema": "DailyCommitment",
+      "description": "Daily strategic commitments and reflections."
+    }
+  }
+}

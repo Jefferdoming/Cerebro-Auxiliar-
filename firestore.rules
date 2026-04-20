@@ -1,0 +1,226 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['userId', 'name', 'createdAt']) 
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 100
+        && (data.createdAt == request.time || data.createdAt == resource.data.createdAt);
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['userId', 'content', 'completed', 'date', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.content is string && data.content.size() <= 500
+        && data.completed is bool
+        && data.date is string && data.date.size() == 10
+        && data.createdAt == request.time;
+    }
+
+    function isValidFinance(data) {
+      return data.keys().hasAll(['userId', 'totalDebt', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.totalDebt is number
+        && data.createdAt == request.time;
+    }
+
+    function isValidHabit(data) {
+      return data.keys().hasAll(['userId', 'title', 'type', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 200
+        && data.type in ['SAVERS', 'MICRO', 'EFFECTIVE']
+        && (data.createdAt == request.time || data.createdAt == resource.data.createdAt);
+    }
+
+    function isValidFinancialRecord(data) {
+      return data.keys().hasAll(['userId', 'type', 'amount', 'description', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.type in ['income', 'bill', 'debt']
+        && data.amount is number
+        && data.description is string && data.description.size() <= 1000
+        && (data.createdAt == request.time || data.createdAt == resource.data.createdAt);
+    }
+
+    function isValidLoan(data) {
+      return data.keys().hasAll(['userId', 'description', 'totalAmount', 'monthlyAmount', 'totalInstallments', 'paidInstallments', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.description is string && data.description.size() <= 200
+        && data.totalAmount is number
+        && data.monthlyAmount is number
+        && data.totalInstallments is number
+        && data.paidInstallments is number
+        && data.createdAt == request.time;
+    }
+
+    function isValidInvestment(data) {
+      return data.keys().hasAll(['userId', 'description', 'amount', 'type', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.description is string && data.description.size() <= 200
+        && data.amount is number
+        && data.type in ['capitalization', 'piggybank', 'other']
+        && data.createdAt == request.time;
+    }
+
+    function isValidRoutine(data) {
+      return data.keys().hasAll(['medication'])
+        && data.medication.keys().hasAll(['morning', 'afternoon', 'night', 'lastNoted'])
+        && data.medication.morning is bool
+        && data.medication.afternoon is bool
+        && data.medication.night is bool
+        && data.medication.lastNoted is string;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll(['userId', 'title', 'date', 'type', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 200
+        && data.date is string && data.date.size() == 10
+        && data.type in ['school', 'health', 'delivery', 'personal']
+        && data.createdAt == request.time;
+    }
+
+    function isValidCommitment(data) {
+      return data.keys().hasAll(['userId', 'date', 'microHabit', 'isCompleted', 'reflection', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.date is string && data.date.size() == 10
+        && data.microHabit is string && data.microHabit.size() <= 300
+        && data.isCompleted is bool
+        && data.reflection is string && data.reflection.size() <= 1000
+        && data.createdAt == request.time;
+    }
+
+    // --- Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidId(userId)
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'role', 'onboardingComplete', 'createdAt'])
+        );
+    }
+
+    match /tasks/{taskId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(taskId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(taskId) && isValidTask(request.resource.data);
+      allow update: if isSignedIn() && isValidId(taskId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'completed', 'date'])
+        );
+      allow delete: if isSignedIn() && isValidId(taskId) && resource.data.userId == request.auth.uid;
+    }
+
+    match /finances/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidFinance(request.resource.data);
+      allow update: if isOwner(userId) && isValidId(userId)
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalDebt', 'monthlyMeta', 'lastImpulseCheck'])
+        );
+    }
+
+    match /habits/{habitId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(habitId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(habitId) && isValidHabit(request.resource.data);
+      allow update: if isSignedIn() && isValidId(habitId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'type', 'completedDates', 'streak'])
+        );
+      allow delete: if isSignedIn() && isValidId(habitId) && resource.data.userId == request.auth.uid;
+    }
+
+    match /financial_records/{recordId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(recordId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(recordId) && isValidFinancialRecord(request.resource.data);
+      allow update: if isSignedIn() && isValidId(recordId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amount', 'description', 'dueDate', 'status', 'priority'])
+        );
+      allow delete: if isSignedIn() && isValidId(recordId) && resource.data.userId == request.auth.uid;
+    }
+
+    match /loans/{loanId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(loanId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(loanId) && isValidLoan(request.resource.data);
+      allow update: if isSignedIn() && isValidId(loanId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paidInstallments', 'interestRate', 'description', 'totalAmount', 'monthlyAmount', 'totalInstallments'])
+        );
+      allow delete: if isSignedIn() && isValidId(loanId) && resource.data.userId == request.auth.uid;
+    }
+
+    match /investments/{investmentId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(investmentId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(investmentId) && isValidInvestment(request.resource.data);
+      allow update: if isSignedIn() && isValidId(investmentId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amount', 'description', 'type', 'totalInstallments', 'paidInstallments', 'monthlyContribution'])
+        );
+      allow delete: if isSignedIn() && isValidId(investmentId) && resource.data.userId == request.auth.uid;
+    }
+
+    match /routines/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidRoutine(request.resource.data);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidRoutine(request.resource.data);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /events/{eventId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(eventId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(eventId) && isValidEvent(request.resource.data);
+      allow update: if isSignedIn() && isValidId(eventId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'date', 'startTime', 'type', 'category', 'notes'])
+        );
+      allow delete: if isSignedIn() && isValidId(eventId) && resource.data.userId == request.auth.uid;
+    }
+
+    match /commitments/{commitmentId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(commitmentId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(commitmentId) && isValidCommitment(request.resource.data);
+      allow update: if isSignedIn() && isValidId(commitmentId) && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['microHabit', 'isCompleted', 'reflection'])
+        );
+      allow delete: if isSignedIn() && isValidId(commitmentId) && resource.data.userId == request.auth.uid;
+    }
+  }
+}

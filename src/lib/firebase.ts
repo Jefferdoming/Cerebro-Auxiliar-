@@ -1,0 +1,21 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Test Connection Helper
+export async function testFirestoreConnection() {
+  try {
+    const testDoc = doc(db, 'test', 'connection');
+    await getDocFromServer(testDoc);
+    console.log('Firebase connection optimized.');
+  } catch (error: any) {
+    if (error.message?.includes('offline')) {
+      console.warn('Firestore is offline or connection restricted.');
+    }
+  }
+}

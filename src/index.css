@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-brand-primary: #1A1A1A; /* Deep Charcoal - Editorial */
+  --color-brand-secondary: #71717A;
+  --color-brand-bg: #FCFCFB;
+  --color-brand-border: #EDEDED;
+  --color-brand-accent: #DC2626; /* Crimson for Crisis */
+  --color-brand-warning: #FEF3C7;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-brand-primary font-sans antialiased;
+  }
+}
+
+.adhd-card {
+  @apply bg-white rounded-xl p-6 border border-brand-border shadow-sm transition-all hover:shadow-md active:scale-[0.99];
+}
+
+.task-card {
+  @apply bg-white rounded-xl p-6 border border-brand-border shadow-sm border-l-4 border-l-slate-200 hover:border-l-brand-primary transition-all hover:shadow-md active:scale-[0.99];
+}
+
+.editorial-line {
+  @apply h-[1px] bg-brand-primary opacity-10 w-full;
+}
+
+.big-btn {
+  @apply w-full py-6 px-6 rounded-2xl font-semibold text-xl transition-all active:translate-y-0.5 flex items-center justify-center gap-3;
+}
+
+.brain-button {
+  @apply w-full py-6 px-6 rounded-2xl font-semibold text-xl transition-all active:translate-y-0.5 flex items-center justify-center gap-3 bg-brand-primary text-white hover:bg-zinc-800 shadow-xl shadow-zinc-200/50;
+}
+
+.pulse {
+  animation: pulse 2.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
