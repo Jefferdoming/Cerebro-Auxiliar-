@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo arredondado suave -->
+  <rect width="512" height="512" rx="128" fill="#8B5CF6"/>
+  
+  <!-- Cérebro Estilizado -->
+  <path d="M256 100C195.248 100 146 149.248 146 210C146 230.134 151.411 248.995 160.846 265.232C151.353 277.892 146 293.308 146 310C146 349.765 178.235 382 218 382C226.758 382 235.158 380.43 242.921 377.534C246.845 379.167 251.272 380 256 380C260.728 380 265.155 379.167 269.079 377.534C276.842 380.43 285.242 382 294 382C333.765 382 366 349.765 366 310C366 293.308 360.647 277.892 351.154 265.232C360.589 248.995 366 230.134 366 210C366 149.248 316.752 100 256 100ZM256 140V240M196 210H316M256 240L236 290H276L256 340" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Detalhes de Conexões -->
+  <circle cx="256" cy="140" r="12" fill="white"/>
+  <circle cx="196" cy="210" r="12" fill="white"/>
+  <circle cx="316" cy="210" r="12" fill="white"/>
+  <circle cx="256" cy="340" r="12" fill="white"/>
+</svg>

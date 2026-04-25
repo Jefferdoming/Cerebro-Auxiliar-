@@ -43,7 +43,8 @@ export default function Calendar() {
     type: 'school' as const,
     category: '',
     startTime: '',
-    notes: ''
+    notes: '',
+    isRecurring: false
   });
 
   useEffect(() => {
@@ -121,7 +122,12 @@ export default function Calendar() {
     return (
       <div className="grid grid-cols-7 gap-px bg-slate-100 border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
         {calendarDays.map((date, i) => {
-          const dayEvents = events.filter(e => e.date === format(date, 'yyyy-MM-dd'));
+          const dayOfWeek = date.getDay();
+          const dayEvents = events.filter(e => {
+            const isOnThisDay = e.date === format(date, 'yyyy-MM-dd');
+            const isRecurringTarget = e.isRecurring && e.dayOfWeek === dayOfWeek;
+            return isOnThisDay || isRecurringTarget;
+          });
           const isSelected = isSameDay(date, selectedDate);
           const isCurrentMonth = isSameMonth(date, monthStart);
           
@@ -180,18 +186,25 @@ export default function Calendar() {
       category: newEvent.category,
       startTime: newEvent.startTime,
       notes: newEvent.notes,
+      isRecurring: newEvent.isRecurring,
+      dayOfWeek: selectedDate.getDay(),
       createdAt: serverTimestamp()
     });
 
     setIsAddModalOpen(false);
-    setNewEvent({ title: '', type: 'school', category: '', startTime: '', notes: '' });
+    setNewEvent({ title: '', type: 'school', category: '', startTime: '', notes: '', isRecurring: false });
   };
 
   const deleteEvent = async (id: string) => {
     await deleteDoc(doc(db, 'events', id));
   };
 
-  const selectedDateEvents = events.filter(e => e.date === format(selectedDate, 'yyyy-MM-dd'));
+  const selectedDayOfWeek = selectedDate.getDay();
+  const selectedDateEvents = events.filter(e => {
+    const isSameDate = e.date === format(selectedDate, 'yyyy-MM-dd');
+    const isRecurringOnDay = e.isRecurring && e.dayOfWeek === selectedDayOfWeek;
+    return isSameDate || isRecurringOnDay;
+  });
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-24">
@@ -276,6 +289,9 @@ export default function Calendar() {
                       {event.notes}
                     </div>
                   )}
+                  {event.isRecurring && (
+                    <div className="text-[9px] font-bold text-brand-primary uppercase mt-1">Repete Semanalmente</div>
+                  )}
                 </div>
               </motion.div>
             )) : (
@@ -349,6 +365,23 @@ export default function Calendar() {
                   value={newEvent.notes} 
                   onChange={e => setNewEvent({...newEvent, notes: e.target.value})} 
                 />
+
+                <button 
+                  onClick={() => setNewEvent({...newEvent, isRecurring: !newEvent.isRecurring})}
+                  className={cn(
+                    "w-full p-4 rounded-xl border flex items-center justify-between transition-all",
+                    newEvent.isRecurring ? "bg-brand-primary/5 border-brand-primary text-brand-primary" : "bg-white border-zinc-100 text-slate-400"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Repetir Toda Semana</span>
+                  </div>
+                  <div className={cn(
+                    "w-4 h-4 rounded-full border-2 transition-all",
+                    newEvent.isRecurring ? "bg-brand-primary border-white" : "border-slate-200"
+                  )} />
+                </button>
               </div>
 
               <button 

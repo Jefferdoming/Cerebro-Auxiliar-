@@ -1,7 +1,71 @@
-import { motion } from 'motion/react';
-import { GraduationCap, BookOpen, Clock, ClipboardCheck, Sparkles, Pencil, Zap, ShieldCheck, Brain, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { GraduationCap, BookOpen, Clock, ClipboardCheck, Sparkles, Pencil, Zap, ShieldCheck, Brain, CheckCircle2, Loader2, X, AlertTriangle } from 'lucide-react';
+import { db, auth } from '../lib/firebase';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { UserProfile, CortexResponse, CortexInput } from '../types';
+import { getCortexResponse, getEmergencyAction } from '../services/cortexService';
+import { cn } from '../lib/utils';
 
 export default function WorkMode() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [note, setNote] = useState('');
+  const [cortex, setCortex] = useState<CortexResponse | null>(null);
+  const [loadingCortex, setLoadingCortex] = useState(false);
+  const [emergencyAction, setEmergencyAction] = useState<string | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [isEmergencyLoading, setIsEmergencyLoading] = useState(false);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const unsub = onSnapshot(doc(db, 'users', auth.currentUser.uid), (snapshot) => {
+      if (snapshot.exists()) setProfile(snapshot.data() as UserProfile);
+    });
+    return unsub;
+  }, []);
+
+  const triggerCortex = async () => {
+    if (!auth.currentUser || loadingCortex || !note.trim()) return;
+    setLoadingCortex(true);
+
+    const input: CortexInput = {
+      energia: profile?.energyLevel || 'medium',
+      estado_emocional: profile?.crisisMode ? 'crise' : 'ok',
+      tentativas_falha: 0,
+      tempo_inativo_min: 0,
+      tipo_evento: 'foco_executivo',
+      tarefa: note
+    };
+
+    try {
+      const response = await getCortexResponse(input);
+      setCortex(response);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCortex(false);
+    }
+  };
+
+  const triggerEmergency = async () => {
+    if (!auth.currentUser || isEmergencyLoading || !note.trim()) return;
+    setIsEmergencyLoading(true);
+    try {
+      const action = await getEmergencyAction(note, attempts);
+      setEmergencyAction(action);
+      setAttempts(prev => prev + 1);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsEmergencyLoading(false);
+    }
+  };
+
+  const resetEmergency = () => {
+    setEmergencyAction(null);
+    setAttempts(0);
+  };
+
   const teacherChecklists = [
     "Material da aula separado?",
     "Diário de classe atualizado?",
@@ -27,6 +91,137 @@ export default function WorkMode() {
           </p>
         </div>
       </header>
+
+      {/* Digital Notebook & Prefrontal Cortex Assistant */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-brand-primary p-2 rounded-xl text-white shadow-lg shadow-brand-primary/20">
+            <Brain size={20} />
+          </div>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.3em]">Córtex Pré-frontal Digital</h3>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="relative">
+              <textarea
+                placeholder="O que está na sua cabeça agora? (Ex: 'Preciso corrigir 40 provas mas estou exausto')"
+                className="w-full h-48 bg-white border border-brand-border rounded-[2.5rem] p-8 text-xl tracking-tight outline-none focus:border-brand-primary transition-all shadow-sm resize-none"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <div className="absolute right-8 bottom-8 flex gap-3">
+                <button 
+                  onClick={triggerEmergency}
+                  disabled={isEmergencyLoading || !note.trim()}
+                  className="bg-red-50 text-red-600 px-6 py-4 rounded-full text-[10px] font-bold uppercase tracking-widest border border-red-100 hover:bg-red-100 transition-all flex items-center gap-2"
+                >
+                  {isEmergencyLoading ? <Loader2 size={14} className="animate-spin" /> : <AlertTriangle size={14} />}
+                  Travado
+                </button>
+                <button 
+                  onClick={triggerCortex}
+                  disabled={loadingCortex || !note.trim()}
+                  className="bg-[#1A1A1A] text-white px-8 py-4 rounded-full text-[10px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 disabled:opacity-20 transition-all shadow-xl flex items-center gap-3"
+                >
+                  {loadingCortex ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
+                  Córtex Pré-frontal
+                </button>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 italic px-4">
+              * Use este botão quando não conseguir decidir o que fazer ou estiver paralisado por uma ideia.
+            </p>
+          </div>
+
+          <div className="relative min-h-[12rem] space-y-4">
+             {/* Emergency Action System */}
+             {emergencyAction && (
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }} 
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-red-600 text-white p-8 rounded-[2.5rem] shadow-2xl border-4 border-red-500 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-20">
+                    <AlertTriangle size={48} />
+                  </div>
+                  <div className="relative z-10 space-y-6">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[8px] font-bold uppercase tracking-[0.4em] opacity-60">Sistema de Ação de Emergência</span>
+                      <button onClick={resetEmergency} className="hover:rotate-90 transition-transform">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <h4 className="text-3xl font-bold tracking-tighter leading-none">
+                      "{emergencyAction}"
+                    </h4>
+                    <div className="flex gap-2">
+                       <button 
+                         onClick={triggerEmergency}
+                         className="flex-1 bg-white/20 hover:bg-white/30 py-3 rounded-xl text-[8px] font-bold uppercase tracking-widest transition-all"
+                       >
+                         Não consigo
+                       </button>
+                       <button 
+                         onClick={resetEmergency}
+                         className="flex-1 bg-white text-red-600 py-3 rounded-xl text-[8px] font-bold uppercase tracking-widest transition-all"
+                       >
+                         Vou fazer
+                       </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+            <AnimatePresence mode="wait">
+              {cortex ? (
+                <motion.div
+                  key="cortex-output"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className={cn(
+                    "h-full p-8 rounded-[2.5rem] border-2 flex flex-col justify-between transition-all",
+                    cortex.interface === 'reduzida' ? "bg-red-50 border-red-200" : "bg-brand-primary/5 border-brand-primary/20"
+                  )}
+                >
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start">
+                      <Zap size={20} className="text-brand-primary" />
+                      <button onClick={() => setCortex(null)} className="text-slate-300 hover:text-slate-500">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                       {cortex.mensagens.map((msg, i) => (
+                         <p key={i} className="text-lg font-medium text-slate-800 leading-tight tracking-tight">
+                           {msg}
+                         </p>
+                       ))}
+                    </div>
+                  </div>
+                  <div className="pt-4">
+                    <div className="bg-brand-primary text-white px-4 py-2 rounded-full text-[9px] font-bold uppercase tracking-widest inline-block">
+                      {cortex.acao}
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="cortex-empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="h-full border-2 border-dashed border-slate-100 rounded-[2.5rem] flex items-center justify-center p-8 text-center"
+                >
+                  <p className="text-[10px] font-medium text-slate-300 uppercase tracking-widest">
+                    Escreva ao lado e ative <br/>sua função executiva
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </section>
 
       {/* Hero: Return for Motoboy / Global Work Context */}
       <div className="adhd-card !bg-[#1A1A1A] text-white p-12 rounded-[3.5rem] relative overflow-hidden group">

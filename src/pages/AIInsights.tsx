@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { motion } from 'motion/react';
 import { BookOpen, Sparkles, Star, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { cn } from '../lib/utils';
 
 const MODEL_NAME = "gemini-3-flash-preview";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -11,13 +12,13 @@ export default function AIInsights() {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchInsight = async () => {
+  const fetchInsight = async (topic?: string) => {
     setLoading(true);
     try {
       const prompt = `Gere um pequeno texto de autoconhecimento (Trilha TDAH) para hoje. 
-      Foco: Disciplina leve e organização sem culpa. 
+      Foco: ${topic || 'Disciplina leve e organização sem culpa'}. 
       Formato: Markdown. Linguagem simples. Curto (máximo 150 palavras). 
-      Inclua uma "Missão do Dia".`;
+      Inclua uma "Missão do Dia" prática.`;
 
       const response = await ai.models.generateContent({
         model: MODEL_NAME,
@@ -71,13 +72,23 @@ export default function AIInsights() {
               )}
             </div>
 
-            <button 
-              onClick={fetchInsight}
-              disabled={loading}
-              className="group flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-[#1A1A1A] hover:gap-5 transition-all"
-            >
-              Gerar Novo Insight <ChevronRight className="group-hover:translate-x-2 transition-transform" />
-            </button>
+            <div className="flex gap-6">
+              <button 
+                onClick={() => fetchInsight()}
+                disabled={loading}
+                className="group flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-[#1A1A1A] hover:gap-5 transition-all outline-none"
+              >
+                Gerar Novo Insight <ChevronRight className="group-hover:translate-x-2 transition-transform" />
+              </button>
+              {insight && (
+                <button 
+                  onClick={() => setInsight(null)}
+                  className="text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:text-red-400 transition-colors"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
           </div>
         </article>
 
@@ -103,9 +114,18 @@ export default function AIInsights() {
                 "O custo da troca",
                 "Cansaço Decisório"
               ].map(tag => (
-                <div key={tag} className="flex items-center justify-between group cursor-pointer border-b border-black/5 pb-2">
-                  <span className="text-sm font-bold text-slate-400 group-hover:text-brand-primary transition-colors uppercase tracking-widest leading-none">{tag}</span>
-                </div>
+                <button 
+                  key={tag} 
+                  disabled={loading}
+                  onClick={() => fetchInsight(tag)}
+                  className="w-full flex items-center justify-between group cursor-pointer border-b border-black/5 pb-2 text-left"
+                >
+                  <span className={cn(
+                    "text-sm font-bold group-hover:text-brand-primary transition-colors uppercase tracking-widest leading-none",
+                    loading ? "text-slate-200" : "text-slate-400"
+                  )}>{tag}</span>
+                  <ChevronRight size={14} className="text-slate-200 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
+                </button>
               ))}
             </div>
           </div>

@@ -12,7 +12,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const SYSTEM_INSTRUCTION = `
 Você é o "Cérebro Auxiliar", um assistente terapêutico focado em adultos com TDAH.
 Sua missão é dar instruções PRÁTICAS, DIRETAS e EMPÁTICAS.
-Evite enrolação. Se o usuário estiver travado, dê um comando simples agora (ex: "Levante agora e beba água").
+Evite enrolação.
+
+REGRAS CRÍTICAS:
+1. Se o usuário estiver expressando sentimentos ou estiver "travado" (executive dysfunction), você deve VALIDAR o sentimento e imediatamente dar UMA PEQUENA AÇÃO FÍSICA (ex: "Beba um copo de água agora", "Lave o rosto", "Respire fundo 3 vezes").
+2. SEMPRE sugira UMA pequena ação imediata ao final de CADA resposta. Esta ação deve vir após um título "👉 AÇÃO AGORA:".
+3. Respostas curtas (máximo 3 parágrafos).
+4. Use bullet points para clareza.
 
 Contexto do usuário:
 - Adulto com TDAH.
@@ -20,11 +26,7 @@ Contexto do usuário:
 - Dívida de R$ 21k (precisa evitar gastos impulsivos).
 - Dificuldade com memória, rotina e gestão emocional.
 
-Tom:
-- Empático mas direto.
-- Respostas curtas (máximo 3 parágrafos).
-- Use bullet points.
-- Sempre sugira UMA pequena ação imediata ao final.
+Tom: Empático mas firme e focado em ação direta.
 `;
 
 export default function Chatbot() {
@@ -39,20 +41,29 @@ export default function Chatbot() {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendMessage = async (overrideInput?: string) => {
+    const textToSend = overrideInput || input;
+    if (!textToSend.trim() || loading) return;
 
-    const userMessage = input.trim();
+    const userMessage = textToSend.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    
+    // Update local state first for immediate UI feedback
+    const prevHistory = [...messages];
+    const newMessages = [...prevHistory, { role: 'user', content: userMessage }];
+    setMessages(newMessages as any);
     setLoading(true);
 
     try {
+      // Map messages to format expected by Gemini (role must be 'user' or 'model')
+      const apiHistory = newMessages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
+
       const response = await ai.models.generateContent({
         model: MODEL_NAME,
-        contents: [
-          { role: 'user', parts: [{ text: userMessage }] }
-        ],
+        contents: apiHistory,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           temperature: 0.7,
@@ -62,6 +73,7 @@ export default function Chatbot() {
       const botResponse = response.text || "Desculpe, tive um pequeno curto-circuito. Pode repetir?";
       setMessages(prev => [...prev, { role: 'bot', content: botResponse }]);
     } catch (error) {
+      console.error('Chat AI Error:', error);
       setMessages(prev => [...prev, { role: 'bot', content: "Erro de conexão. Vamos tentar de novo?" }]);
     } finally {
       setLoading(false);
@@ -127,23 +139,37 @@ export default function Chatbot() {
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
         />
         <button 
-          onClick={sendMessage}
+          onClick={() => sendMessage()}
           className="absolute right-4 top-4 w-16 h-16 bg-[#1A1A1A] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition-all"
         >
           <Send size={28} />
         </button>
       </div>
 
-      <div className="mt-8 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-        {['Estou travado', 'Dica de aula', 'Gasto impulsivo', 'Apenas respirar'].map((chip) => (
-          <button 
-            key={chip}
-            onClick={() => setInput(chip)}
-            className="whitespace-nowrap px-6 py-3 bg-white text-[10px] font-bold text-slate-400 uppercase tracking-widest rounded-full border border-brand-border hover:border-brand-primary hover:text-brand-primary transition-all"
-          >
-            {chip}
-          </button>
-        ))}
+      <div className="mt-8 space-y-4">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {['Impulsivo', 'Sobrecarregado', 'Triste', 'Hiperfocado', 'Frustrado'].map((feeling) => (
+            <button 
+              key={feeling}
+              onClick={() => sendMessage(`Estou me sentindo ${feeling}`)}
+              className="whitespace-nowrap px-4 py-2 bg-brand-primary/10 text-brand-primary text-[10px] font-bold uppercase tracking-widest rounded-full border border-brand-primary/20 hover:bg-brand-primary hover:text-white transition-all transition-all"
+            >
+              {feeling}
+            </button>
+          ))}
+        </div>
+        
+        <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+          {['Estou travado', 'Dica de aula', 'Gasto impulsivo', 'Apenas respirar'].map((chip) => (
+            <button 
+              key={chip}
+              onClick={() => sendMessage(chip)}
+              className="whitespace-nowrap px-6 py-3 bg-white text-[10px] font-bold text-slate-400 uppercase tracking-widest rounded-full border border-brand-border hover:border-brand-primary hover:text-brand-primary transition-all"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

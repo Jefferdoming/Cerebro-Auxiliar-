@@ -4,7 +4,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertCircle, Home, ListTodo, Wallet, GraduationCap, MessageCircle, Settings, LogOut, Star, Zap, ArrowRight, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import { AlertCircle, Home, ListTodo, Wallet, GraduationCap, MessageCircle, Settings, LogOut, Star, Zap, ArrowRight, Sparkles, Calendar as CalendarIcon, BookOpen, Brain } from 'lucide-react';
 import { cn } from './lib/utils';
 
 // Pages
@@ -19,6 +19,13 @@ import AIInsights from './pages/AIInsights';
 import Habits from './pages/Habits';
 import Routine from './pages/Routine';
 import Calendar from './pages/Calendar';
+import Journal from './pages/Journal';
+import CerebellumHub from './pages/CerebellumHub';
+import Remember from './pages/Remember';
+import MotoboyHub from './pages/MotoboyHub';
+
+// Components
+import NotificationManager from './components/NotificationManager';
 
 function AppLayout({ children, user }: { children: React.ReactNode, user: User | null }) {
   const location = useLocation();
@@ -32,19 +39,13 @@ function AppLayout({ children, user }: { children: React.ReactNode, user: User |
     { path: '/', label: 'Início', icon: Home },
     { path: '/tasks', label: 'Rotina', icon: ListTodo },
     { path: '/calendar', label: 'Agenda', icon: CalendarIcon },
-    { path: '/routine', label: 'Ritual', icon: Sparkles },
-    { path: '/habits', label: 'Hábitos', icon: Zap },
     { path: '/finances', label: 'Finanças', icon: Wallet },
-  ];
-
-  const secondaryItems = [
-    { path: '/trail', label: 'Trilha', icon: Star },
-    { path: '/work', label: 'Trabalho', icon: GraduationCap },
-    { path: '/chat', label: 'Chatbot', icon: MessageCircle },
+    { path: '/cerebelo', label: 'Cerebelo', icon: Brain },
   ];
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#FCFCFB] text-[#1A1A1A]">
+      {user && <NotificationManager />}
       {/* Sidebar Navigation - Desktop only */}
       {!isCrisisPage && user && (
         <aside className="hidden md:flex w-72 bg-[#1A1A1A] text-white flex-col p-8 fixed h-full z-40">
@@ -57,8 +58,8 @@ function AppLayout({ children, user }: { children: React.ReactNode, user: User |
             </p>
           </div>
 
-          <nav className="flex-grow space-y-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-20 mb-4 ml-2">Foco Diário</p>
+          <nav className="flex-grow space-y-2 overflow-y-auto scrollbar-hide pr-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-20 mb-4 ml-2">Sistemas de Apoio</p>
             {navItems.map((item) => (
               <button
                 key={item.path}
@@ -74,25 +75,6 @@ function AppLayout({ children, user }: { children: React.ReactNode, user: User |
                 <span className="text-xs font-bold uppercase tracking-widest">{item.label}</span>
               </button>
             ))}
-
-            <div className="pt-8 space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-20 mb-4 ml-2">Ferramentas</p>
-              {secondaryItems.map((item) => (
-                <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={cn(
-                  "w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all group",
-                  location.pathname === item.path 
-                    ? "bg-white/10 text-white" 
-                    : "text-white/40 hover:text-white"
-                )}
-              >
-                <item.icon size={18} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">{item.label}</span>
-              </button>
-              ))}
-            </div>
           </nav>
 
           <footer className="pt-8 border-t border-white/5">
@@ -185,14 +167,14 @@ function AppLayout({ children, user }: { children: React.ReactNode, user: User |
             ))}
             {/* More Menu Toggle for Mobile */}
             <button 
-              onClick={() => navigate('/chat')}
+              onClick={() => navigate('/cerebelo')}
               className={cn(
                 "flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl text-white/40",
-                ['/trail', '/work', '/chat'].includes(location.pathname) && "bg-white text-black shadow-lg"
+                location.pathname === '/cerebelo' && "bg-white text-black shadow-lg"
               )}
             >
-              <Settings size={20} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Mais</span>
+              <Brain size={20} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Cerebelo</span>
             </button>
           </div>
         </nav>
@@ -249,9 +231,13 @@ export default function App() {
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/routine" element={<Routine />} />
           <Route path="/habits" element={<Habits />} />
+          <Route path="/journal" element={<Journal />} />
+          <Route path="/cerebelo" element={<CerebellumHub />} />
           <Route path="/work" element={<WorkMode />} />
           <Route path="/trail" element={<AIInsights />} />
           <Route path="/chat" element={<Chatbot />} />
+          <Route path="/remember" element={<Remember />} />
+          <Route path="/motoboy" element={<MotoboyHub />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </AppLayout>

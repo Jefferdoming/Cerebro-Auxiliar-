@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
-import { Pill, Sun, Moon, Coffee, BookOpen, Clock, CheckCircle2, Circle, Sparkles, Brain } from 'lucide-react';
+import { Pill, Sun, Moon, Coffee, BookOpen, Clock, CheckCircle2, Circle, Sparkles, Brain, Bell, BellOff } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { NotificationService } from '../services/notificationService';
 
 interface RoutineState {
   medication: {
@@ -17,11 +18,25 @@ interface RoutineState {
     afternoon: string;
     night: string;
   };
+  completedSteps?: {
+    [date: string]: {
+      morning: string[];
+      night: string[];
+    };
+  };
 }
 
 export default function Routine() {
   const [routine, setRoutine] = useState<RoutineState | null>(null);
   const [activeRitual, setActiveRitual] = useState<'morning' | 'night'>('morning');
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>(
+    NotificationService.getPermissionStatus() as any
+  );
+
+  const isIframe = window.self !== window.top;
+
+  const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -30,28 +45,90 @@ export default function Routine() {
     const unsub = onSnapshot(routineRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as RoutineState;
-        // Reset if it's a new day
-        const today = new Date().toISOString().split('T')[0];
         if (data.medication.lastNoted !== today) {
           const resetData = {
+            ...data,
             medication: { morning: false, afternoon: false, night: false, lastNoted: today },
-            times: data.times || { morning: "07:00", afternoon: "13:00", night: "21:00" }
+            completedSteps: data.completedSteps || {}
           };
+          // Ensure today's entries exist in completedSteps
+          if (!resetData.completedSteps?.[today]) {
+            resetData.completedSteps = {
+              ...resetData.completedSteps,
+              [today]: { morning: [], night: [] }
+            };
+          }
           setDoc(routineRef, resetData);
         } else {
           setRoutine(data);
         }
       } else {
         const initial = {
-          medication: { morning: false, afternoon: false, night: false, lastNoted: new Date().toISOString().split('T')[0] },
-          times: { morning: "07:00", afternoon: "13:00", night: "21:00" }
+          medication: { morning: false, afternoon: false, night: false, lastNoted: today },
+          times: { morning: "07:00", afternoon: "13:00", night: "21:00" },
+          completedSteps: {
+            [today]: { morning: [], night: [] }
+          }
         };
         setDoc(routineRef, initial);
       }
     });
 
     return unsub;
-  }, []);
+  }, [today]);
+
+  const toggleStep = async (ritual: 'morning' | 'night', stepId: string) => {
+    if (!auth.currentUser || !routine) return;
+    const routineRef = doc(db, 'routines', auth.currentUser.uid);
+    const currentSteps = routine.completedSteps?.[today]?.[ritual] || [];
+    const newSteps = currentSteps.includes(stepId) 
+      ? currentSteps.filter(id => id !== stepId)
+      : [...currentSteps, stepId];
+
+    const rituals = {
+      morning: [
+        { id: "m1", act: "Água + Medicação" },
+        { id: "m2", act: "Exposição Solar (5 min)" },
+        { id: "m3", act: "Café sem Celular" },
+        { id: "m4", act: "Planejamento (3 Objetivos)" },
+      ],
+      night: [
+        { id: "n1", act: "Desconexão Digital" },
+        { id: "n2", act: "Organizar Roupa Amanhã" },
+        { id: "n3", act: "Leitura / Escrita" },
+        { id: "n4", act: "Sono Reparador" },
+      ]
+    };
+
+    const isCompleted = newSteps.length === rituals[ritual].length;
+
+    await updateDoc(routineRef, {
+      [`completedSteps.${today}.${ritual}`]: newSteps
+    });
+
+    if (isCompleted && !currentSteps.includes(stepId)) {
+      setShowCelebration(true);
+      // Save history entry
+      const historyId = `${auth.currentUser.uid}_${today}_${ritual}`;
+      await setDoc(doc(db, 'routine_history', historyId), {
+        userId: auth.currentUser.uid,
+        date: today,
+        ritualType: ritual,
+        completedAt: new Date(),
+        steps: newSteps
+      });
+      setTimeout(() => setShowCelebration(false), 3000);
+    }
+  };
+
+  const handleRequestNotifs = async () => {
+    const granted = await NotificationService.requestPermission();
+    setNotifPermission(granted ? 'granted' : 'denied');
+    
+    if (!granted && isIframe) {
+      alert("Para ativar as notificações aqui dentro, você precisa abrir o app em uma aba separada (ícone de seta no canto superior direito), pois navegadores bloqueiam pedidos de notificação dentro de sites embutidos (iframes).");
+    }
+  };
 
   const toggleMed = async (period: 'morning' | 'afternoon' | 'night') => {
     if (!auth.currentUser || !routine) return;
@@ -71,27 +148,70 @@ export default function Routine() {
 
   const rituals = {
     morning: [
-      { time: "07:00", act: "Água + Medicação", icon: Pill },
-      { time: "07:15", act: "Exposição Solar (5 min)", icon: Sun },
-      { time: "07:30", act: "Café sem Celular", icon: Coffee },
-      { time: "08:00", act: "Planejamento (3 Objetivos)", icon: BookOpen },
+      { id: "m1", time: "07:00", act: "Água + Medicação", icon: Pill },
+      { id: "m2", time: "07:15", act: "Exposição Solar (5 min)", icon: Sun },
+      { id: "m3", time: "07:30", act: "Café sem Celular", icon: Coffee },
+      { id: "m4", time: "08:00", act: "Planejamento (3 Objetivos)", icon: BookOpen },
     ],
     night: [
-      { time: "21:00", act: "Desconexão Digital", icon: Moon },
-      { time: "21:30", act: "Organizar Roupa Amanhã", icon: Pill },
-      { time: "22:00", act: "Leitura / Escrita", icon: BookOpen },
-      { time: "22:30", act: "Sono Reparador", icon: Clock },
+      { id: "n1", time: "21:00", act: "Desconexão Digital", icon: Moon },
+      { id: "n2", time: "21:30", act: "Organizar Roupa Amanhã", icon: Pill },
+      { id: "n3", time: "22:00", act: "Leitura / Escrita", icon: BookOpen },
+      { id: "n4", time: "22:30", act: "Sono Reparador", icon: Clock },
     ]
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 pb-24">
-      <header className="space-y-4">
-        <h1 className="text-5xl font-light tracking-tight">Ritual <span className="font-bold">Diário</span></h1>
-        <p className="text-sm font-medium text-slate-400 uppercase tracking-widest border-b border-black/5 pb-8">
-          A estrutura que liberta seu cérebro.
-        </p>
+    <div className="max-w-4xl mx-auto space-y-12 pb-24 relative">
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          >
+            <div className="bg-brand-primary text-white p-12 rounded-[4rem] shadow-2xl text-center space-y-4 border-4 border-white/20 backdrop-blur-xl">
+              <Sparkles size={64} className="mx-auto animate-pulse" />
+              <h2 className="text-4xl font-bold tracking-tight">Ritual Concluído!</h2>
+              <p className="text-white/80 font-medium">Seu cérebro agradece pela consistência.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
+        <div className="space-y-4">
+          <h1 className="text-5xl font-light tracking-tight">Ritual <span className="font-bold">Diário</span></h1>
+          <p className="text-sm font-medium text-slate-400 uppercase tracking-widest">
+            A estrutura que liberta seu cérebro.
+          </p>
+        </div>
+        
+        <button 
+          onClick={handleRequestNotifs}
+          className={cn(
+            "flex items-center gap-3 px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all",
+            notifPermission === 'granted' 
+              ? "bg-green-50 text-green-600 border border-green-100" 
+              : notifPermission === 'denied'
+                ? "bg-red-50 text-red-500 border border-red-100"
+                : "bg-brand-primary/10 text-brand-primary border border-brand-primary/20 hover:bg-brand-primary hover:text-white"
+          )}
+        >
+          {notifPermission === 'granted' ? (
+            <> <Bell size={14} /> Lembretes Ativos </>
+          ) : notifPermission === 'denied' ? (
+            <> <BellOff size={14} /> Bloqueado / Usar Aba Separada </>
+          ) : notifPermission === 'unsupported' ? (
+            <> <BellOff size={14} /> Não suportado </>
+          ) : (
+            <> <BellOff size={14} /> Ativar Lembretes </>
+          )}
+        </button>
       </header>
+
+      <div className="border-b border-black/5 mx-4" />
 
       {/* Medication Integration */}
       <section className="adhd-card !bg-[#1A1A1A] text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
@@ -169,20 +289,40 @@ export default function Routine() {
               exit={{ opacity: 0, x: -20 }}
               className="contents"
             >
-              {rituals[activeRitual].map((step, i) => (
-                <div key={i} className="task-card p-8 flex items-center gap-8 group bg-white border-brand-border">
-                  <div className="text-3xl font-serif italic text-slate-100 group-hover:text-brand-primary transition-colors">
-                    0{i+1}
+              {rituals[activeRitual].map((step, i) => {
+                const isStepDone = routine?.completedSteps?.[today]?.[activeRitual]?.includes(step.id);
+                return (
+                  <div 
+                    key={step.id} 
+                    onClick={() => toggleStep(activeRitual, step.id)}
+                    className={cn(
+                      "task-card p-8 flex items-center gap-8 group cursor-pointer transition-all",
+                      isStepDone ? "bg-zinc-50 border-transparent opacity-60" : "bg-white border-brand-border hover:shadow-lg"
+                    )}
+                  >
+                    <div className="shrink-0">
+                      {isStepDone ? (
+                        <CheckCircle2 size={32} className="text-brand-primary" fill="currentColor" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full border-2 border-slate-200 group-hover:border-brand-primary transition-colors" />
+                      )}
+                    </div>
+                    <div className={cn(
+                      "w-14 h-14 rounded-2xl flex items-center justify-center transition-all",
+                      isStepDone ? "bg-white text-brand-primary" : "bg-zinc-50 text-slate-300 group-hover:text-brand-primary group-hover:bg-brand-primary/5"
+                    )}>
+                      <step.icon size={28} strokeWidth={1.5} />
+                    </div>
+                    <div className="flex-grow">
+                      <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">{step.time}</p>
+                      <p className={cn(
+                        "text-xl font-medium tracking-tight",
+                        isStepDone ? "text-slate-400 line-through" : "text-slate-700"
+                      )}>{step.act}</p>
+                    </div>
                   </div>
-                  <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center text-slate-300 group-hover:text-brand-primary group-hover:bg-brand-primary/5 transition-all">
-                    <step.icon size={28} strokeWidth={1.5} />
-                  </div>
-                  <div className="flex-grow">
-                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">{step.time}</p>
-                    <p className="text-xl font-medium tracking-tight text-slate-700">{step.act}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </motion.div>
           </AnimatePresence>
         </div>

@@ -5,7 +5,7 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   
   --color-brand-primary: #1A1A1A; /* Deep Charcoal - Editorial */
-  --color-brand-secondary: #71717A;
+  --color-brand-secondary: #52525B; /* Darker Zinc-600 equivalent */
   --color-brand-bg: #FCFCFB;
   --color-brand-border: #EDEDED;
   --color-brand-accent: #DC2626; /* Crimson for Crisis */
@@ -27,7 +27,7 @@
 }
 
 .editorial-line {
-  @apply h-[1px] bg-brand-primary opacity-10 w-full;
+  @apply h-[1px] bg-brand-primary opacity-50 w-full;
 }
 
 .big-btn {
@@ -38,8 +38,12 @@
   @apply w-full py-6 px-6 rounded-2xl font-semibold text-xl transition-all active:translate-y-0.5 flex items-center justify-center gap-3 bg-brand-primary text-white hover:bg-zinc-800 shadow-xl shadow-zinc-200/50;
 }
 
-.pulse {
-  animation: pulse 2.5s infinite;
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @keyframes pulse {
